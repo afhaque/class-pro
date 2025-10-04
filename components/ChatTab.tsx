@@ -725,7 +725,8 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         setMessages(prev => [...prev, testMessage]);
       }
     } catch (error) {
-      console.error('Error generating test message:', error);
+      // Silently handle errors - fallback messages will be used
+      console.log('Test message generation failed, using fallback');
     }
   };
 

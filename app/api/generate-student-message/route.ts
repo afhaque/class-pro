@@ -27,10 +27,22 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.OPENAI_HACKATHON_KEY;
     
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured', fallback: true },
-        { status: 200 } // Return 200 so client knows to use fallback
-      );
+      // Return a fallback message directly instead of an error
+      const fallbackMessages = {
+        'Spanish': ['¿Puede repetir eso?', 'No entiendo esta parte.', '¿Tiene un ejemplo?', 'Esto está claro.', '¿Podemos continuar?'],
+        'French': ['Pouvez-vous répéter?', 'Je ne comprends pas.', 'Avez-vous un exemple?', 'C\'est clair.', 'On peut continuer?'],
+        'Japanese': ['もう一度言ってください。', 'わかりません。', '例がありますか？', 'わかりました。', '続けられますか？'],
+        'Arabic': ['هل يمكنك تكرار ذلك؟', 'لا أفهم هذا الجزء.', 'هل لديك مثال؟', 'هذا واضح.', 'هل يمكننا المتابعة؟']
+      };
+      
+      const messages = fallbackMessages[language as keyof typeof fallbackMessages] || ['Test message'];
+      const message = messages[Math.floor(Math.random() * messages.length)];
+      
+      return NextResponse.json({
+        message: message,
+        messageType: 'fallback',
+        fallback: true
+      });
     }
 
     // Pick a random message type
