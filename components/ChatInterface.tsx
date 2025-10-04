@@ -129,7 +129,7 @@ export default function ChatInterface({ userType }: ChatInterfaceProps) {
       {/* Tab Content - keep tabs mounted so transcript keeps running in background */}
       <div className="flex-1 overflow-hidden">
         <div className={activeTab === 'chat' ? 'h-full' : 'hidden'}>
-          <ChatTab userLanguage={userLanguage} />
+          <ChatTab userLanguage={userLanguage} userType={userType} />
         </div>
         <div className={activeTab === 'transcript' ? 'h-full' : 'hidden'}>
           <TranscriptTab userLanguage={userLanguage} />

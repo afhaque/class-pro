@@ -457,14 +457,27 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userLanguage]);
 
+  const handleStudentNameSubmit = () => {
+    if (!studentName.trim()) return;
+    
+    localStorage.setItem(STUDENT_NAME_STORAGE_KEY, studentName.trim());
+    setShowNameInput(false);
+  };
+
   const handleSubmit = () => {
     if (!message.trim()) return;
+
+    // For students, check if they have entered their name
+    if (userType === 'student' && !studentName.trim()) {
+      setShowNameInput(true);
+      return;
+    }
 
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       text: message.trim(),
       timestamp: Date.now(),
-      sender: 'You', // Placeholder - will be replaced with actual user identification later
+      sender: userType === 'student' ? studentName.trim() : 'Teacher',
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -624,6 +637,36 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Student Name Input Modal */}
+      {showNameInput && (
+        <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg border border-[#E5E5E5] shadow-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-[15px] font-semibold mb-2 text-[#0D0D0D]">Enter Your Name</h3>
+            <p className="text-[13px] text-[#8B8D98] mb-4">
+              Please enter your name to start chatting in the class.
+            </p>
+            <input
+              type="text"
+              placeholder="Your name"
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleStudentNameSubmit()}
+              className="w-full px-3 py-2 text-[13px] bg-[#FAFAFA] border border-[#E5E5E5] rounded-md focus:outline-none focus:bg-white focus:border-[#D4D4D4] mb-4 placeholder:text-[#B4B8BF] transition-colors"
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={handleStudentNameSubmit}
+                disabled={!studentName.trim()}
+                className="px-4 py-2 text-[13px] font-medium bg-[#5E6AD2] text-white hover:bg-[#4A5BC4] rounded-md transition-all disabled:bg-[#F5F5F5] disabled:text-[#D4D4D4] disabled:cursor-not-allowed"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Language Input Modal */}
       {showLanguageInput && (
         <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 backdrop-blur-sm">

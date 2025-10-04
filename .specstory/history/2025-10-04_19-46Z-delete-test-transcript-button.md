@@ -1023,3 +1023,21 @@ The transcript translation now works exactly like the chat interface - it will a
 
 ---
 
+_**User**_
+
+   Linting and checking validity of types ...
+Failed to compile.
+./app/api/ta-detector/route.ts:60:11
+Type error: Type 'DetectorRow[] | null' is not assignable to type 'DetectorRow | null'.
+  Type 'DetectorRow[]' is missing the following properties from type 'DetectorRow': avg_conf, min_conf, max_conf, student_cnt, and 4 more.
+  58 |     const curData = await curRows.json<DetectorRow[]>();
+  59 |     const prevData = await prevRows.json<{ avg_conf: number }[]>();
+> 60 |     const cur: DetectorRow | null = curData && curData.length > 0 ? curData[0] : null;
+     |           ^
+  61 |     const prevAvg = Number(prevData && prevData.length > 0 ? prevData[0].avg_conf : NaN);
+
+
+deployment issue
+
+---
+

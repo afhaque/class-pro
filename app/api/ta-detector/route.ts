@@ -55,10 +55,10 @@ export async function GET(request: NextRequest) {
       client.query({ query: prevQuery, format: 'JSONEachRow' }),
     ]);
 
-    const curData = await curRows.json<DetectorRow[]>();
-    const prevData = await prevRows.json<{ avg_conf: number }[]>();
-    const cur: DetectorRow | null = curData && curData.length > 0 ? curData[0] : null;
-    const prevAvg = Number(prevData && prevData.length > 0 ? prevData[0].avg_conf : NaN);
+    const curData = await curRows.json() as DetectorRow[];
+    const prevData = await prevRows.json() as { avg_conf: number }[];
+    const cur: DetectorRow | null = curData?.[0] ?? null;
+    const prevAvg = Number(prevData?.[0]?.avg_conf ?? NaN);
 
     // No/insufficient data checks
     if (!cur || !Array.isArray(cur.confidences) || cur.confidences.length === 0) {
