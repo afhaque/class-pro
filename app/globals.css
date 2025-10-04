@@ -1,8 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Linear-inspired color palette - Light mode */
+  --background: #FAFAFA;
+  --foreground: #0D0D0D;
+  --surface: #FFFFFF;
+  --border: #E5E5E5;
+  --border-hover: #D4D4D4;
+  
+  /* Accent colors - used sparingly */
+  --accent-primary: #5E6AD2;
+  --accent-primary-hover: #4C59BD;
+  --accent-secondary: #8B8D98;
+  
+  /* Semantic colors */
+  --success: #00B386;
+  --warning: #FFC043;
+  --error: #DF2D36;
+  
+  /* Text hierarchy */
+  --text-primary: #0D0D0D;
+  --text-secondary: #6B6F76;
+  --text-tertiary: #8B8D98;
+  --text-placeholder: #B4B8BF;
 }
 
 @theme inline {
@@ -12,15 +32,31 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle shadow for elevation */
+.shadow-sm {
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Focus states */
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }

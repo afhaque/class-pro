@@ -1,5 +1,5 @@
 {
-  "name": "nextjs",
+  "name": "class-pro",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,12 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
+    "@clickhouse/client": "^1.12.1",
     "@daily-co/daily-js": "^0.84.0",
     "@daily-co/daily-react": "^0.23.2",
     "jotai": "^2.15.0",
     "next": "15.5.4",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
