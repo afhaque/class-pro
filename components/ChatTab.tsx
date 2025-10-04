@@ -183,20 +183,24 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
     // Schedule timeouts
     messagesToSend.forEach(({ delay, msg }) => {
       const timer = window.setTimeout(async () => {
-        setMessages(prev => [...prev, msg]);
-        
-        // Also publish to Ably for real-time distribution
+        // Only publish to Ably - don't add to local state to prevent double posting
+        // The Ably subscription will handle adding the message to the UI
         try {
-          if (userType && ablyChannelRef.current) {
+          if (ablyChannelRef.current) {
             const channelName = getChannelName();
             await publishMessage(channelName, {
               text: msg.text,
               sender: msg.sender,
               senderType: 'student', // Scenario messages are from students
             });
+          } else {
+            // Fallback: if Ably is not available, add directly to local state
+            setMessages(prev => [...prev, msg]);
           }
         } catch (error) {
           console.error('Failed to publish scenario message to Ably:', error);
+          // Fallback: if publishing fails, add directly to local state
+          setMessages(prev => [...prev, msg]);
         }
       }, delay);
       scenarioTimersRef.current.push(timer);
@@ -653,34 +657,56 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         }),
       });
 
-      if (!response.ok) {
-        console.error('Failed to generate message');
-        return;
-      }
+      let messageText: string;
 
-      const data = await response.json();
+      if (!response.ok) {
+        // Silently fall back to static messages when API fails (likely missing OpenAI key)
+        const fallbackMessages = {
+          'Spanish': ['¿Puede repetir eso?', 'No entiendo esta parte.', '¿Tiene un ejemplo?', 'Esto está claro.', '¿Podemos continuar?'],
+          'French': ['Pouvez-vous répéter?', 'Je ne comprends pas.', 'Avez-vous un exemple?', 'C\'est clair.', 'On peut continuer?'],
+          'Japanese': ['もう一度言ってください。', 'わかりません。', '例がありますか？', 'わかりました。', '続けられますか？'],
+          'Arabic': ['هل يمكنك تكرار ذلك؟', 'لا أفهم هذا الجزء.', 'هل لديك مثال؟', 'هذا واضح.', 'هل يمكننا المتابعة؟']
+        };
+        
+        const messages = fallbackMessages[language as keyof typeof fallbackMessages] || ['Test message'];
+        messageText = messages[Math.floor(Math.random() * messages.length)];
+        
+        console.log(`Using fallback message for ${language}: ${messageText}`);
+      } else {
+        const data = await response.json();
+        messageText = data.message;
+      }
       
-      const testMessage: ChatMessage = {
-        id: Date.now().toString(),
-        text: data.message,
-        timestamp: Date.now(),
-        sender: sender,
-      };
-      
-      setMessages(prev => [...prev, testMessage]);
-      
-      // Also publish to Ably for real-time distribution
+      // Only publish to Ably - don't add to local state to prevent double posting
+      // The Ably subscription will handle adding the message to the UI
       try {
-        if (userType && ablyChannelRef.current) {
+        if (ablyChannelRef.current) {
           const channelName = getChannelName();
           await publishMessage(channelName, {
-            text: data.message,
+            text: messageText,
             sender: sender,
             senderType: 'student', // Test messages are from students
           });
+        } else {
+          // Fallback: if Ably is not available, add directly to local state
+          const testMessage: ChatMessage = {
+            id: Date.now().toString(),
+            text: messageText,
+            timestamp: Date.now(),
+            sender: sender,
+          };
+          setMessages(prev => [...prev, testMessage]);
         }
       } catch (error) {
         console.error('Failed to publish test message to Ably:', error);
+        // Fallback: if publishing fails, add directly to local state
+        const testMessage: ChatMessage = {
+          id: Date.now().toString(),
+          text: messageText,
+          timestamp: Date.now(),
+          sender: sender,
+        };
+        setMessages(prev => [...prev, testMessage]);
       }
     } catch (error) {
       console.error('Error generating test message:', error);
