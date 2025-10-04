@@ -3,10 +3,10 @@ import Ably from 'ably';
 // Ably configuration
 const ABLY_API_KEY = 'J2Y9Eg.T4F9Lw:1Ly2ceLrSqpxNWlxg79NljxdcmS1uxFbM4BZqxA2QGg';
 
-// Create Ably client instance
+// Create a single global Ably client instance
 export const ablyClient = new Ably.Realtime({
   key: ABLY_API_KEY,
-  clientId: `user-${Math.random().toString(36).substr(2, 9)}`, // Generate unique client ID
+  // No clientId - let Ably generate anonymous connections
 });
 
 // Single global channel for all users
@@ -49,7 +49,11 @@ export const publishMessage = async (
     timestamp: Date.now(),
   };
   
+  console.log(`Publishing message to channel ${channelName}:`, messageWithMetadata);
+  console.log(`Ably client connection state:`, ablyClient.connection.state);
+  
   await channel.publish('message', messageWithMetadata);
+  console.log('Message published successfully');
 };
 
 // Helper function to subscribe to messages
@@ -59,8 +63,21 @@ export const subscribeToMessages = (
 ): Ably.RealtimeChannel => {
   const channel = ablyClient.channels.get(channelName);
   
+  console.log(`Subscribing to channel: ${channelName}`);
+  console.log(`Ably client connection state:`, ablyClient.connection.state);
+  
   channel.subscribe('message', (message) => {
+    console.log(`Received message on channel ${channelName}:`, message.data);
     onMessage(message.data as AblyMessage);
+  });
+  
+  // Log when connection state changes
+  ablyClient.connection.on('connected', () => {
+    console.log('Ably client connected successfully');
+  });
+  
+  ablyClient.connection.on('disconnected', () => {
+    console.log('Ably client disconnected');
   });
   
   return channel;

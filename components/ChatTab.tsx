@@ -270,13 +270,9 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         translation: ablyMessage.translation,
       };
       
-      // Only add message if it's not from the current user (to avoid duplicates)
-      if (ablyMessage.sender !== currentSenderRef.current) {
-        console.log(`Adding message from ${ablyMessage.sender} (current sender: ${currentSenderRef.current})`);
-        setMessages(prev => [...prev, chatMessage]);
-      } else {
-        console.log(`Skipping duplicate message from ${ablyMessage.sender}`);
-      }
+      // Add all messages for now to debug (remove duplicate prevention temporarily)
+      console.log(`Adding message from ${ablyMessage.sender} (current sender: ${currentSenderRef.current})`);
+      setMessages(prev => [...prev, chatMessage]);
     });
 
     ablyChannelRef.current = channel;
