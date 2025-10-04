@@ -11,6 +11,7 @@
     "@clickhouse/client": "^1.12.1",
     "@daily-co/daily-js": "^0.84.0",
     "@daily-co/daily-react": "^0.23.2",
+    "ably": "^2.14.0",
     "jotai": "^2.15.0",
     "next": "15.5.4",
     "react": "19.1.0",

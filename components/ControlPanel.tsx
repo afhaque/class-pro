@@ -175,7 +175,8 @@ export default function ControlPanel() {
 
   return (
     <div className="bg-white rounded-lg border border-[#E5E5E5] p-4 relative">
-      <div className="flex items-center justify-center gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
         <button
           onClick={toggleTranscription}
           className={`w-10 h-10 rounded-md flex items-center justify-center transition-all ${
@@ -219,10 +220,10 @@ export default function ControlPanel() {
         >
           <RiPhoneFill size={18} />
         </button>
-      </div>
-
-      {/* Scenario & test controls (top-right) */}
-      <div className="absolute right-4 top-4 flex items-center gap-3">
+        </div>
+        
+        {/* Scenario & test controls (right side) */}
+        <div className="flex items-center gap-3">
         <select
           value={selectedScenario}
           onChange={(e) => setSelectedScenario(e.target.value)}
@@ -251,6 +252,7 @@ export default function ControlPanel() {
         >
           {isGeneratingTranscript ? 'Creating…' : 'Test Transcript'}
         </button>
+        </div>
       </div>
     </div>
   );

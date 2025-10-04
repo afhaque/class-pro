@@ -1,6 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { 
+  ablyClient, 
+  getChannelName, 
+  publishMessage, 
+  subscribeToMessages, 
+  unsubscribeFromMessages,
+  AblyMessage
+} from '../lib/ably';
+import Ably from 'ably';
 
 interface ChatMessage {
   id: string;
@@ -44,6 +53,9 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
   // Student name state
   const [studentName, setStudentName] = useState<string>('');
   const [showNameInput, setShowNameInput] = useState<boolean>(false);
+  
+  // Ably channel reference
+  const ablyChannelRef = useRef<Ably.RealtimeChannel | null>(null);
 
   // Scenario handler: listen for events dispatched from ControlPanel
   useEffect(() => {
@@ -169,15 +181,32 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
 
     // Schedule timeouts
     messagesToSend.forEach(({ delay, msg }) => {
-      const timer = window.setTimeout(() => {
+      const timer = window.setTimeout(async () => {
         setMessages(prev => [...prev, msg]);
+        
+        // Also publish to Ably for real-time distribution
+        try {
+          if (userType && ablyChannelRef.current) {
+            const channelName = getChannelName(userType);
+            await publishMessage(channelName, {
+              text: msg.text,
+              sender: msg.sender,
+              senderType: 'student', // Scenario messages are from students
+            });
+          }
+        } catch (error) {
+          console.error('Failed to publish scenario message to Ably:', error);
+        }
       }, delay);
       scenarioTimersRef.current.push(timer);
     });
   };
 
-  // Load messages and student name from local storage on mount
+  // Initialize Ably connection and load messages
   useEffect(() => {
+    if (!userType) return;
+
+    // Load messages from local storage
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
@@ -207,7 +236,38 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         setShowNameInput(true);
       }
     }
-  }, [userType]);
+
+    // Setup Ably connection
+    const channelName = getChannelName(userType);
+    const channel = subscribeToMessages(channelName, (ablyMessage: AblyMessage) => {
+      // Convert AblyMessage to ChatMessage format
+      const chatMessage: ChatMessage = {
+        id: ablyMessage.id,
+        text: ablyMessage.text,
+        timestamp: ablyMessage.timestamp,
+        sender: ablyMessage.sender,
+        detectedLanguage: ablyMessage.detectedLanguage,
+        autoTranslation: ablyMessage.autoTranslation,
+        translation: ablyMessage.translation,
+      };
+      
+      // Only add message if it's not from the current user (to avoid duplicates)
+      const currentSender = userType === 'student' ? studentName : 'Teacher';
+      if (ablyMessage.sender !== currentSender) {
+        setMessages(prev => [...prev, chatMessage]);
+      }
+    });
+
+    ablyChannelRef.current = channel;
+
+    // Cleanup function
+    return () => {
+      if (ablyChannelRef.current) {
+        unsubscribeFromMessages(ablyChannelRef.current);
+        ablyChannelRef.current = null;
+      }
+    };
+  }, [userType, studentName]);
 
   // Save messages to local storage whenever they change
   useEffect(() => {
@@ -464,7 +524,7 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
     setShowNameInput(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!message.trim()) return;
 
     // For students, check if they have entered their name
@@ -473,15 +533,35 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
       return;
     }
 
+    const messageText = message.trim();
+    const sender = userType === 'student' ? studentName.trim() : 'Teacher';
+    
+    // Create message for local state
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
-      text: message.trim(),
+      text: messageText,
       timestamp: Date.now(),
-      sender: userType === 'student' ? studentName.trim() : 'Teacher',
+      sender: sender,
     };
 
+    // Add to local state immediately for better UX
     setMessages(prev => [...prev, newMessage]);
     setMessage('');
+
+    // Publish to Ably for real-time distribution
+    try {
+      if (userType && ablyChannelRef.current) {
+        const channelName = getChannelName(userType);
+        await publishMessage(channelName, {
+          text: messageText,
+          sender: sender,
+          senderType: userType,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to publish message to Ably:', error);
+      // Message is already in local state, so user experience isn't affected
+    }
   };
 
   const formatTimestamp = (timestamp: number) => {
@@ -556,6 +636,20 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
       };
       
       setMessages(prev => [...prev, testMessage]);
+      
+      // Also publish to Ably for real-time distribution
+      try {
+        if (userType && ablyChannelRef.current) {
+          const channelName = getChannelName(userType);
+          await publishMessage(channelName, {
+            text: data.message,
+            sender: sender,
+            senderType: 'student', // Test messages are from students
+          });
+        }
+      } catch (error) {
+        console.error('Failed to publish test message to Ably:', error);
+      }
     } catch (error) {
       console.error('Error generating test message:', error);
     }
