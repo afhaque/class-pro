@@ -118,10 +118,6 @@ export default function Home() {
       // Add configuration for better deployment compatibility
       dailyConfig: {
         useDevicePreferenceCookies: true,
-        enableChromeOnAndroid: true,
-        enableSafari: true,
-        enableFirefox: true,
-        enableEdge: true,
       },
     });
 
