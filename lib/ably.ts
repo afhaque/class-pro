@@ -9,12 +9,8 @@ export const ablyClient = new Ably.Realtime({
   clientId: `user-${Math.random().toString(36).substr(2, 9)}`, // Generate unique client ID
 });
 
-// Channel names for different chat rooms
-export const CHANNELS = {
-  CLASS_CHAT: 'class-chat',
-  TEACHER_CHAT: 'teacher-chat',
-  STUDENT_CHAT: 'student-chat',
-} as const;
+// Single global channel for all users
+export const GLOBAL_CHANNEL = 'class-pro-global-chat';
 
 // Message types
 export interface AblyMessage {
@@ -36,9 +32,9 @@ export interface AblyMessage {
   };
 }
 
-// Helper function to get the appropriate channel based on user type
-export const getChannelName = (userType: 'teacher' | 'student'): string => {
-  return userType === 'teacher' ? CHANNELS.TEACHER_CHAT : CHANNELS.STUDENT_CHAT;
+// Helper function to get the global channel (same for everyone)
+export const getChannelName = (): string => {
+  return GLOBAL_CHANNEL;
 };
 
 // Helper function to publish a message

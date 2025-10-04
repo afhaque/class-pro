@@ -56,6 +56,7 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
   
   // Ably channel reference
   const ablyChannelRef = useRef<Ably.RealtimeChannel | null>(null);
+  const currentSenderRef = useRef<string>('');
 
   // Scenario handler: listen for events dispatched from ControlPanel
   useEffect(() => {
@@ -187,7 +188,7 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         // Also publish to Ably for real-time distribution
         try {
           if (userType && ablyChannelRef.current) {
-            const channelName = getChannelName(userType);
+            const channelName = getChannelName();
             await publishMessage(channelName, {
               text: msg.text,
               sender: msg.sender,
@@ -202,7 +203,7 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
     });
   };
 
-  // Initialize Ably connection and load messages
+  // Load messages and student name from local storage on mount
   useEffect(() => {
     if (!userType) return;
 
@@ -236,10 +237,28 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         setShowNameInput(true);
       }
     }
+  }, [userType]);
+
+  // Update current sender ref when student name changes
+  useEffect(() => {
+    if (userType === 'student') {
+      currentSenderRef.current = studentName;
+    } else {
+      currentSenderRef.current = 'Teacher';
+    }
+  }, [userType, studentName]);
+
+  // Setup Ably connection (separate effect to avoid reconnection issues)
+  useEffect(() => {
+    if (!userType) return;
 
     // Setup Ably connection
-    const channelName = getChannelName(userType);
+    const channelName = getChannelName();
+    console.log(`Setting up Ably connection for ${userType} on global channel: ${channelName}`);
+    
     const channel = subscribeToMessages(channelName, (ablyMessage: AblyMessage) => {
+      console.log('Received Ably message:', ablyMessage);
+      
       // Convert AblyMessage to ChatMessage format
       const chatMessage: ChatMessage = {
         id: ablyMessage.id,
@@ -252,9 +271,11 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
       };
       
       // Only add message if it's not from the current user (to avoid duplicates)
-      const currentSender = userType === 'student' ? studentName : 'Teacher';
-      if (ablyMessage.sender !== currentSender) {
+      if (ablyMessage.sender !== currentSenderRef.current) {
+        console.log(`Adding message from ${ablyMessage.sender} (current sender: ${currentSenderRef.current})`);
         setMessages(prev => [...prev, chatMessage]);
+      } else {
+        console.log(`Skipping duplicate message from ${ablyMessage.sender}`);
       }
     });
 
@@ -267,7 +288,7 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         ablyChannelRef.current = null;
       }
     };
-  }, [userType, studentName]);
+  }, [userType]); // Remove studentName dependency to avoid reconnection
 
   // Save messages to local storage whenever they change
   useEffect(() => {
@@ -551,12 +572,18 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
     // Publish to Ably for real-time distribution
     try {
       if (userType && ablyChannelRef.current) {
-        const channelName = getChannelName(userType);
+        const channelName = getChannelName();
+        console.log(`Publishing message to Ably on global channel: ${channelName}`, {
+          text: messageText,
+          sender: sender,
+          senderType: userType,
+        });
         await publishMessage(channelName, {
           text: messageText,
           sender: sender,
           senderType: userType,
         });
+        console.log('Message published successfully to Ably');
       }
     } catch (error) {
       console.error('Failed to publish message to Ably:', error);
@@ -640,7 +667,7 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
       // Also publish to Ably for real-time distribution
       try {
         if (userType && ablyChannelRef.current) {
-          const channelName = getChannelName(userType);
+          const channelName = getChannelName();
           await publishMessage(channelName, {
             text: data.message,
             sender: sender,
