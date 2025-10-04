@@ -660,7 +660,7 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
       let messageText: string;
 
       if (!response.ok) {
-        // Silently fall back to static messages when API fails (likely missing OpenAI key)
+        // Silently fall back to static messages when API fails
         const fallbackMessages = {
           'Spanish': ['¿Puede repetir eso?', 'No entiendo esta parte.', '¿Tiene un ejemplo?', 'Esto está claro.', '¿Podemos continuar?'],
           'French': ['Pouvez-vous répéter?', 'Je ne comprends pas.', 'Avez-vous un exemple?', 'C\'est clair.', 'On peut continuer?'],
@@ -674,7 +674,23 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         console.log(`Using fallback message for ${language}: ${messageText}`);
       } else {
         const data = await response.json();
-        messageText = data.message;
+        // Check if API returned a fallback indicator
+        if (data.fallback) {
+          // API key not configured, use fallback messages
+          const fallbackMessages = {
+            'Spanish': ['¿Puede repetir eso?', 'No entiendo esta parte.', '¿Tiene un ejemplo?', 'Esto está claro.', '¿Podemos continuar?'],
+            'French': ['Pouvez-vous répéter?', 'Je ne comprends pas.', 'Avez-vous un exemple?', 'C\'est clair.', 'On peut continuer?'],
+            'Japanese': ['もう一度言ってください。', 'わかりません。', '例がありますか？', 'わかりました。', '続けられますか？'],
+            'Arabic': ['هل يمكنك تكرار ذلك؟', 'لا أفهم هذا الجزء.', 'هل لديك مثال؟', 'هذا واضح.', 'هل يمكننا المتابعة؟']
+          };
+          
+          const messages = fallbackMessages[language as keyof typeof fallbackMessages] || ['Test message'];
+          messageText = messages[Math.floor(Math.random() * messages.length)];
+          
+          console.log(`Using fallback message for ${language}: ${messageText}`);
+        } else {
+          messageText = data.message;
+        }
       }
       
       // Only publish to Ably - don't add to local state to prevent double posting
