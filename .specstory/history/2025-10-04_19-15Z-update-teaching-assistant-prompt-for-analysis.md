@@ -1596,3 +1596,99 @@ You should now see guidance that always includes quantitative context, honors th
 
 ---
 
+_**User (2025-10-04 15:32Z)**_
+
+create a second agent that plays a first role.
+
+this should quickly analyze the data for signs of a notable event. If there is a notable event it should allow for the modal to appear. if no notable event exists it should suppress the modal. Here is an example system prompt
+
+/**
+ * NOTABLE EVENT DETECTION AGENT
+ */
+
+You are an event detection system monitoring live student engagement data during a video-based class.
+
+## YOUR ROLE
+Scan incoming student engagement data and identify notable events that warrant instructor attention. You are the first-pass filter that determines whether the Teaching Assistant should generate feedback.
+
+## DATA INPUTS
+You receive:
+- Student confidence scores (1-5 scale) with timestamps
+- Question submission flags with timestamps
+- Student identifiers
+
+## CONFIDENCE SCALE REFERENCE
+- **High confidence (3.75-5.0)**: Students are following well
+- **Low confidence (2.5-3.75)**: Students are struggling slightly
+- **Very low confidence (<2.5)**: Students need immediate support
+
+## DETECTION LOGIC
+
+Analyze the last 5 minutes of data and check for these notable events:
+
+### 1. DATA AVAILABILITY
+- **No data available**: Return `{"notable_event": false, "reason": "no_data"}`
+- **Insufficient data** (fewer than 3 data points): Return `{"notable_event": false, "reason": "insufficient_data"}`
+
+### 2. LOW SENTIMENT EVENTS
+- **Class-wide low confidence**: 5-min average < 2.75
+- **Multiple struggling students**: 3+ students with confidence < 2.5 in the window
+- **Confidence drop**: Average decreased by >1.0 point compared to previous 5-min window
+- **Sustained low confidence**: Average below 3.0 for entire 5-min window
+
+### 3. VERY LOW SENTIMENT EVENTS (CRITICAL)
+- **Individual crisis**: Any student at confidence 1
+- **Severe class struggle**: 5-min average < 2.0
+- **Mass confusion**: 50%+ of active students below 2.5
+
+### 4. QUESTION ENGAGEMENT EVENTS
+- **No questions**: 0 questions in last 3+ minutes AND average confidence < 3.5
+- **Question surge**: 4+ questions in last 2 minutes
+- **Question drought**: 0 questions in last 5+ minutes (regardless of confidence)
+
+### 5. HIGH SENTIMENT EVENTS (POSITIVE)
+- **Strong comprehension**: 5-min average > 4.25
+- **Confidence surge**: Average increased by >1.0 point compared to previous window
+- **Universal high confidence**: 80%+ of students at 4.0 or above
+- **Sustained excellence**: Average above 4.5 for entire 5-min window
+
+### 6. MIXED SIGNALS
+- **High variance**: Standard deviation > 1.5 (some students thriving, others struggling)
+- **Polarized class**: Students clustered at both extremes (<2.5 and >4.5)
+
+## OUTPUT FORMAT
+
+Return a JSON object with the following structure:
+```json
+{
+  "notable_event": true,
+  "event_type": "low_sentiment" | "very_low_sentiment" | "high_sentiment" | "no_questions" | "question_surge" | "high_variance" | "confidence_drop" | "confidence_surge" | "no_data",
+  "severity": "critical" | "moderate" | "positive" | "neutral",
+  "summary": "Brief description of what was detected",
+  "metrics": {
+    "average_confidence": 3.2,
+    "min_confidence": 1.0,
+    "max_confidence": 5.0,
+    "question_count": 0,
+    "student_count": 12,
+    "low_confidence_students": ["Liam", "Ethan"],
+    "high_confidence_students": ["Ava", "Leo"]
+  }
+}
+
+---
+
+_**Assistant (gpt-5)**_
+
+<think><details><summary>Thought Process</summary>**Creating second agent endpoint**
+
+I need to set up a second agent endpoint for the project, likely something like app/api/ta-gate or ta-detector. The current setup fetches suggestions every 15 seconds from /api/ta-agent, but the user has specifically asked for a modal to appear only if there's a notable event. This means I'll need to implement a new API route that quickly analyzes the data for signs of such events and signal the overlay accordingly. The details are quite focused!
+**Constructing the second agent**
+
+The user wants me to create a second agent that only shows a modal if there's a notable event. The current overlay shows a message automatically, so I need to update TeachingAssistantOverlay.tsx. My plan is to call the new detector endpoint first: if it returns true for notable_event, I'll fetch suggestions; otherwise, I'll hide the modal. I'll write a new route file for the detector that computes metrics, including variance from ClickHouse, and update the to-do for multi-step tasks. Let's keep it straightforward!
+**Building the detector endpoint**
+
+I</details></think>
+
+---
+

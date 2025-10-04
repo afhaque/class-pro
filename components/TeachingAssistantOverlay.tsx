@@ -13,7 +13,17 @@ export default function TeachingAssistantOverlay({ userType }: TeachingAssistant
 
   async function fetchSuggestion() {
     try {
-      const resp = await fetch('/api/ta-agent?minutes=2', { cache: 'no-store' });
+      // First call detector to decide if we should show a modal
+      const det = await fetch('/api/ta-detector?minutes=5', { cache: 'no-store' });
+      if (!det.ok) return;
+      const detJson = await det.json();
+      const shouldShow = Boolean(detJson?.data?.notable_event);
+      if (!shouldShow) {
+        setVisible(false);
+        return;
+      }
+
+      const resp = await fetch('/api/ta-agent?minutes=5', { cache: 'no-store' });
       if (!resp.ok) return;
       const data = await resp.json();
       const suggestion: string | undefined = data?.data?.suggestion;
