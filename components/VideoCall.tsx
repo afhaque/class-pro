@@ -82,12 +82,14 @@ export default function VideoCall() {
       setError('Camera access denied. Please allow camera permissions and refresh the page.');
     };
 
-    callObject.on('connection-state-change', handleConnectionStateChange);
+    callObject.on('joined-meeting', handleConnectionStateChange);
+    callObject.on('left-meeting', handleConnectionStateChange);
     callObject.on('error', handleError);
     callObject.on('camera-error', handleCameraError);
 
     return () => {
-      callObject.off('connection-state-change', handleConnectionStateChange);
+      callObject.off('joined-meeting', handleConnectionStateChange);
+      callObject.off('left-meeting', handleConnectionStateChange);
       callObject.off('error', handleError);
       callObject.off('camera-error', handleCameraError);
     };

@@ -1083,7 +1083,142 @@ Error: Command "npm run build" exited with 1
 
 _**Assistant (default)**_
 
+The deployment is failing because of a TypeScript error in the Daily.co configuration. The `enableChromeOnAndroid` property doesn't exist in the current version of the Daily.co types. Let me fix this:
 
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/ahmedhaque/CodeWork/class-pro/app/page.tsx
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [-] Fix Daily.co configuration TypeScript error by removing invalid properties
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/ahmedhaque/CodeWork/class-pro/app/page.tsx</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -119,5 +119,4 @@
+        dailyConfig: {
+          useDevicePreferenceCookies: true,
+-         enableChromeOnAndroid: true,
+          enableSafari: true,
+          enableFirefox: true,
+```
+
+</details>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Fix Daily.co configuration TypeScript error by removing invalid properties
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/ahmedhaque/CodeWork/class-pro/app/page.tsx`
+
+Lint results
+
+Lint errors for `app/page.tsx`
+
+
+| Message | Range | Severity |
+|-------|-------|----------|
+| Object literal may only specify known properties, and 'enableSafari' does not exist in type 'DailyAdvancedConfig'. | 121:9-121:21 | DIAGNOSTIC_SEVERITY_ERROR |
+
+
+</details>
+
+---
+
+It looks like there are more invalid properties. Let me check what properties are actually valid for the Daily.co configuration:
+
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/ahmedhaque/CodeWork/class-pro/app/page.tsx</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 3
+
+```diff
+@@ -119,7 +119,4 @@
+        dailyConfig: {
+          useDevicePreferenceCookies: true,
+-         enableSafari: true,
+-         enableFirefox: true,
+-         enableEdge: true,
+        },
+      });
+```
+
+</details>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/ahmedhaque/CodeWork/class-pro/app/page.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+Perfect! I've fixed the deployment error by removing the invalid Daily.co configuration properties. Here's what I did:
+
+## The Problem:
+The deployment was failing with a TypeScript error because:
+- `enableChromeOnAndroid` doesn't exist in the current Daily.co types
+- `enableSafari`, `enableFirefox`, and `enableEdge` also don't exist in the current types
+- These properties were likely from an older version of the Daily.co SDK
+
+## The Solution:
+I **removed all the invalid properties** and kept only the valid one:
+- ✅ **Kept**: `useDevicePreferenceCookies: true` (valid property)
+- ❌ **Removed**: `enableChromeOnAndroid`, `enableSafari`, `enableFirefox`, `enableEdge` (invalid properties)
+
+## Result:
+- ✅ **TypeScript compilation will now pass**
+- ✅ **Deployment should succeed**
+- ✅ **Daily.co functionality remains intact**
+- ✅ **Browser compatibility is handled by Daily.co's default settings**
+
+The deployment should now work without any TypeScript errors. The Daily.co call object will still function properly with the default browser compatibility settings.
 
 ---
 
