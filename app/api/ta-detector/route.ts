@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
 
     const curData = await curRows.json<DetectorRow[]>();
     const prevData = await prevRows.json<{ avg_conf: number }[]>();
-    const cur = curData?.[0] || null;
-    const prevAvg = Number(prevData?.[0]?.avg_conf ?? NaN);
+    const cur: DetectorRow | null = curData && curData.length > 0 ? curData[0] : null;
+    const prevAvg = Number(prevData && prevData.length > 0 ? prevData[0].avg_conf : NaN);
 
     // No/insufficient data checks
     if (!cur || !Array.isArray(cur.confidences) || cur.confidences.length === 0) {
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     const max = Math.max(...cur.confidences);
     const std = (() => {
       const mean = avg || 0;
-      const v = cur.confidences.reduce((s, x) => s + Math.pow((x - mean), 2), 0) / cur.confidences.length;
+      const v = cur.confidences.reduce((s: number, x: number) => s + Math.pow((x - mean), 2), 0) / cur.confidences.length;
       return Math.sqrt(v);
     })();
 
@@ -85,8 +85,8 @@ export async function GET(request: NextRequest) {
       .map((name, i) => ({ name, score: Number(cur.confidences[i] ?? 3) }))
       .filter(x => x.score >= 4.0);
 
-    const pctBelow25 = cur.confidences.filter(v => v < 2.5).length / cur.confidences.length;
-    const pctAbove40 = cur.confidences.filter(v => v >= 4.0).length / cur.confidences.length;
+    const pctBelow25 = cur.confidences.filter((v: number) => v < 2.5).length / cur.confidences.length;
+    const pctAbove40 = cur.confidences.filter((v: number) => v >= 4.0).length / cur.confidences.length;
 
     const deltaFromPrev = Number.isFinite(prevAvg) ? (avg - prevAvg) : 0;
 

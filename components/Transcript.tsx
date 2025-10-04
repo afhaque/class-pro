@@ -14,7 +14,9 @@ interface TranscriptMessage {
     code: string;
     name: string;
   };
-  translation?: string;
+  autoTranslation?: {
+    text: string;
+  };
   isTranslating?: boolean;
 }
 
@@ -31,6 +33,9 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const prevMessagesLengthRef = useRef(0);
+  const [isGeneratingTranscript, setIsGeneratingTranscript] = useState(false);
+  const [autoTranslatingIds, setAutoTranslatingIds] = useState<Set<string>>(new Set());
+  const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -45,26 +50,31 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
     prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
-  // Translate final messages as they arrive (in parallel for speed)
+  // Auto-detect language and translate incoming messages using DeepL
   useEffect(() => {
-    const translateMessages = async () => {
-      const messagesToTranslate = messages.filter(
-        msg => msg.isFinal && !msg.detectedLanguage && !msg.isTranslating
+    const processIncomingMessages = async () => {
+      // Find messages that need language detection and haven't been processed yet
+      const messagesToProcess = messages.filter(msg => 
+        msg.isFinal && 
+        !msg.detectedLanguage && 
+        !autoTranslatingIds.has(msg.id) &&
+        !processedMessageIds.has(msg.id) // Don't reprocess
       );
 
-      if (messagesToTranslate.length === 0) return;
+      if (messagesToProcess.length === 0) return;
 
-      // Mark all messages as translating
-      setMessages(prev => prev.map(m => 
-        messagesToTranslate.find(msg => msg.id === m.id)
-          ? { ...m, isTranslating: true }
-          : m
-      ));
+      console.log(`Processing ${messagesToProcess.length} new transcript messages with DeepL`);
 
-      // Translate all messages in parallel
-      const translationPromises = messagesToTranslate.map(async (msg) => {
+      // Process each message
+      for (const msg of messagesToProcess) {
+        // Mark as being processed and as processed
+        setAutoTranslatingIds(prev => new Set(prev).add(msg.id));
+        setProcessedMessageIds(prev => new Set(prev).add(msg.id));
+
         try {
-          const response = await fetch('/api/translate-deepl', {
+          // Use DeepL for both language detection AND translation in one call
+          console.log('Sending transcript message to DeepL:', msg.id);
+          const translateResponse = await fetch('/api/translate-deepl', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -75,51 +85,85 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
             }),
           });
 
-          if (!response.ok) {
-            console.error('Translation failed for transcript');
-            return { id: msg.id, error: true };
+          if (!translateResponse.ok) {
+            let errorBody: any = null;
+            let errorText = '';
+            try {
+              errorBody = await translateResponse.clone().json();
+            } catch {}
+            if (!errorBody) {
+              try {
+                errorText = await translateResponse.text();
+              } catch {}
+            }
+            console.error('DeepL error for transcript:', {
+              status: translateResponse.status,
+              statusText: translateResponse.statusText,
+              body: errorBody || errorText || null,
+            });
+            const message =
+              (errorBody && (errorBody.details || errorBody.error)) ||
+              errorText ||
+              `Translation failed (HTTP ${translateResponse.status})`;
+            throw new Error(message);
           }
 
-          const data = await response.json();
+          const data = await translateResponse.json();
+          console.log('DeepL response for transcript:', {
+            detected: data.detectedLanguageName,
+            needsTranslation: data.needsTranslation
+          });
           
-          return {
-            id: msg.id,
-            detectedLanguage: {
-              code: data.detectedSourceLanguage,
-              name: data.detectedLanguageName,
-            },
-            translation: data.needsTranslation ? data.translatedText : undefined,
-            error: false,
-          };
+          // Update message with detected language and translation (if needed)
+          setMessages(prev => prev.map(m => 
+            m.id === msg.id
+              ? {
+                  ...m,
+                  detectedLanguage: {
+                    code: data.detectedSourceLanguage,
+                    name: data.detectedLanguageName,
+                  },
+                  autoTranslation: data.needsTranslation && data.translatedText ? {
+                    text: data.translatedText,
+                  } : undefined
+                }
+              : m
+          ));
+
         } catch (error) {
-          console.error('Error translating transcript:', error);
-          return { id: msg.id, error: true };
+          console.error('Auto-translation error for transcript message', msg.id, ':', error);
+          
+          // Check if it's a rate limit error
+          if (error instanceof Error && error.message.includes('Rate limit')) {
+            console.warn('Rate limit hit - will retry later');
+            // Remove from processed set so it can be retried
+            setProcessedMessageIds(prev => {
+              const next = new Set(prev);
+              next.delete(msg.id);
+              return next;
+            });
+            // Wait a bit before allowing retry
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        } finally {
+          // Remove from processing set
+          setAutoTranslatingIds(prev => {
+            const next = new Set(prev);
+            next.delete(msg.id);
+            return next;
+          });
         }
-      });
-
-      // Wait for all translations to complete
-      const results = await Promise.all(translationPromises);
-
-      // Update all messages at once
-      setMessages(prev => prev.map(m => {
-        const result = results.find(r => r.id === m.id);
-        if (!result) return m;
         
-        if (result.error) {
-          return { ...m, isTranslating: false };
+        // Add a small delay between messages to avoid hitting rate limits
+        if (messagesToProcess.indexOf(msg) < messagesToProcess.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
-        
-        return {
-          ...m,
-          detectedLanguage: result.detectedLanguage,
-          translation: result.translation,
-          isTranslating: false,
-        };
-      }));
+      }
     };
 
-    translateMessages();
-  }, [messages, userLanguage]);
+    processIncomingMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, userLanguage]); // Only trigger when message count changes, not content
 
   // Re-translate all existing final transcript segments when language changes
   useEffect(() => {
@@ -129,8 +173,12 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
       const finals = messages.filter((m) => m.isFinal);
       if (finals.length === 0) return;
 
-      // Mark translating
-      setMessages((prev) => prev.map((m) => (m.isFinal ? { ...m, isTranslating: true } : m)));
+      // Mark as processing to disable controls while re-translating
+      setAutoTranslatingIds((prev) => {
+        const next = new Set(prev);
+        finals.forEach((m) => next.add(m.id));
+        return next;
+      });
 
       try {
         const results = await Promise.all(
@@ -145,7 +193,11 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
                   sourceLanguage: msg.detectedLanguage?.code,
                 }),
               });
-              if (!response.ok) return { id: msg.id, error: true } as const;
+
+              if (!response.ok) {
+                return { id: msg.id, error: true } as const;
+              }
+
               const data = await response.json();
               return {
                 id: msg.id,
@@ -153,7 +205,9 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
                   code: data.detectedSourceLanguage,
                   name: data.detectedLanguageName,
                 },
-                translation: data.needsTranslation ? data.translatedText : undefined,
+                autoTranslation: data.needsTranslation && data.translatedText ? {
+                  text: data.translatedText,
+                } : undefined,
                 error: false,
               } as const;
             } catch {
@@ -162,23 +216,27 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
           })
         );
 
+        // Apply results in one pass
         setMessages((prev) =>
           prev.map((m) => {
             if (!m.isFinal) return m;
             const r = results.find((x) => x.id === m.id);
-            if (!r) return { ...m, isTranslating: false };
-            if (r.error) return { ...m, isTranslating: false };
+            if (!r) return m;
+            if (r.error) return m;
             return {
               ...m,
               detectedLanguage: r.detectedLanguage || m.detectedLanguage,
-              translation: r.translation,
-              isTranslating: false,
+              autoTranslation: r.autoTranslation,
             };
           })
         );
       } finally {
-        // Ensure translating flags are cleared in case of early exits
-        setMessages((prev) => prev.map((m) => ({ ...m, isTranslating: false })));
+        // Clear processing marks
+        setAutoTranslatingIds((prev) => {
+          const next = new Set(prev);
+          finals.forEach((m) => next.delete(m.id));
+          return next;
+        });
       }
     };
 
@@ -221,8 +279,21 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
       }
     };
 
+    const handleTranscriptLoading = (e: any) => {
+      try {
+        const isLoading = e?.detail?.isLoading === true;
+        setIsGeneratingTranscript(isLoading);
+      } catch (err) {
+        console.error('Failed to handle transcript loading event', err);
+      }
+    };
+
     window.addEventListener('classpro-test-transcript', handleTestTranscript as EventListener);
-    return () => window.removeEventListener('classpro-test-transcript', handleTestTranscript as EventListener);
+    window.addEventListener('classpro-transcript-loading', handleTranscriptLoading as EventListener);
+    return () => {
+      window.removeEventListener('classpro-test-transcript', handleTestTranscript as EventListener);
+      window.removeEventListener('classpro-transcript-loading', handleTranscriptLoading as EventListener);
+    };
   }, []);
 
   // Listen for transcription messages
@@ -427,7 +498,13 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
 
       {/* Transcript Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 ? (
+        {isGeneratingTranscript ? (
+          <div className="flex flex-col items-center justify-center h-full text-[#8B8D98]">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5E6AD2] mb-3"></div>
+            <p className="text-[15px] font-medium">Generating transcript...</p>
+            <p className="text-[13px] mt-1">Please wait while we create your test transcript</p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-[#8B8D98]">
             <p className="text-[15px] font-medium">No transcripts yet</p>
             <p className="text-[13px] mt-1">
@@ -437,13 +514,13 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
         ) : (
           groupedMessages.map((group) => {
             const lastMsg = group.messages[group.messages.length - 1];
-            const anyTranslating = group.messages.some((m) => m.isTranslating);
+            const anyTranslating = group.messages.some((m) => autoTranslatingIds.has(m.id));
             const lastDetectedLanguage = [...group.messages]
               .reverse()
               .find((m) => m.detectedLanguage)?.detectedLanguage;
-            const hasAnyTranslation = group.messages.some((m) => !!m.translation);
+            const hasAnyTranslation = group.messages.some((m) => !!m.autoTranslation);
             const translatedJoined = group.messages
-              .map((m) => m.translation ?? m.text)
+              .map((m) => m.autoTranslation?.text ?? m.text)
               .join(' ');
             const originalJoined = group.messages.map((m) => m.text).join(' ');
 
@@ -466,7 +543,7 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
                     )}
                     {anyTranslating && (
                       <span className="px-2 py-0.5 bg-[#F5F5F5] text-[#8B8D98] text-[11px] rounded animate-pulse">
-                        Translating...
+                        Detecting...
                       </span>
                     )}
                   </div>
@@ -479,7 +556,7 @@ export default function Transcript({ userLanguage }: TranscriptProps) {
                   <>
                     <div className="mb-2 p-2.5 bg-white rounded border border-[#E5E5E5]">
                       <p className="text-[10px] font-medium text-[#8B8D98] mb-1.5 uppercase tracking-wide">
-                        Translated to {userLanguage.toUpperCase()}
+                        Translated
                       </p>
                       <p className="text-[13px] text-[#0D0D0D]">{translatedJoined}</p>
                     </div>

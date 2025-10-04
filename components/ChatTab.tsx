@@ -21,12 +21,14 @@ interface ChatMessage {
 }
 
 const STORAGE_KEY = 'class-pro-chat-messages';
+const STUDENT_NAME_STORAGE_KEY = 'class-pro-student-name';
 
 interface ChatTabProps {
   userLanguage: string;
+  userType?: 'teacher' | 'student';
 }
 
-export default function ChatTab({ userLanguage }: ChatTabProps) {
+export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,6 +40,10 @@ export default function ChatTab({ userLanguage }: ChatTabProps) {
   const [autoTranslatingIds, setAutoTranslatingIds] = useState<Set<string>>(new Set());
   const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
   const [loggedConfidenceIds, setLoggedConfidenceIds] = useState<Set<string>>(new Set());
+  
+  // Student name state
+  const [studentName, setStudentName] = useState<string>('');
+  const [showNameInput, setShowNameInput] = useState<boolean>(false);
 
   // Scenario handler: listen for events dispatched from ControlPanel
   useEffect(() => {
@@ -170,7 +176,7 @@ export default function ChatTab({ userLanguage }: ChatTabProps) {
     });
   };
 
-  // Load messages from local storage on mount
+  // Load messages and student name from local storage on mount
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -191,7 +197,17 @@ export default function ChatTab({ userLanguage }: ChatTabProps) {
         console.error('Error loading messages from local storage:', error);
       }
     }
-  }, []);
+
+    // Load student name if user is a student
+    if (userType === 'student') {
+      const storedName = localStorage.getItem(STUDENT_NAME_STORAGE_KEY);
+      if (storedName) {
+        setStudentName(storedName);
+      } else {
+        setShowNameInput(true);
+      }
+    }
+  }, [userType]);
 
   // Save messages to local storage whenever they change
   useEffect(() => {

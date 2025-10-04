@@ -78,6 +78,9 @@ export default function ControlPanel() {
   const createTestTranscript = async () => {
     try {
       setIsGeneratingTranscript(true);
+      // Dispatch loading state to transcript component
+      window.dispatchEvent(new CustomEvent('classpro-transcript-loading', { detail: { isLoading: true } }));
+      
       const res = await fetch('/api/generate-test-transcript', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,6 +98,8 @@ export default function ControlPanel() {
       console.error('Error generating test transcript', e);
     } finally {
       setIsGeneratingTranscript(false);
+      // Dispatch loading state end to transcript component
+      window.dispatchEvent(new CustomEvent('classpro-transcript-loading', { detail: { isLoading: false } }));
     }
   };
 
@@ -169,8 +174,8 @@ export default function ControlPanel() {
   const isAudioOff = localAudio.isOff || localAudio.state === 'off' || !currentAudioState;
 
   return (
-    <div className="bg-white rounded-lg border border-[#E5E5E5] p-3 relative">
-      <div className="flex items-center justify-center gap-2">
+    <div className="bg-white rounded-lg border border-[#E5E5E5] p-4 relative">
+      <div className="flex items-center justify-center gap-3">
         <button
           onClick={toggleTranscription}
           className={`w-10 h-10 rounded-md flex items-center justify-center transition-all ${
@@ -217,23 +222,23 @@ export default function ControlPanel() {
       </div>
 
       {/* Scenario & test controls (top-right) */}
-      <div className="absolute right-3 top-3 flex items-center gap-2">
+      <div className="absolute right-4 top-4 flex items-center gap-3">
         <select
           value={selectedScenario}
           onChange={(e) => setSelectedScenario(e.target.value)}
-          className="h-8 px-2 text-[12px] bg-[#FAFAFA] border border-[#E5E5E5] rounded-md focus:outline-none focus:bg-white focus:border-[#D4D4D4] transition-colors text-[#6B6F76]"
+          className="h-8 px-3 text-[12px] bg-[#FAFAFA] border border-[#E5E5E5] rounded-md focus:outline-none focus:bg-white focus:border-[#D4D4D4] transition-colors text-[#6B6F76] min-w-[120px]"
           title="Select a test scenario"
         >
           <option value="">Scenario…</option>
-          <option value="scenario-1">Mixed lost vs understand</option>
-          <option value="scenario-2">Mostly understand, few lost</option>
-          <option value="scenario-3">Scale ~5</option>
-          <option value="scenario-4">Scale ~2.5</option>
+          <option value="scenario-1">Scenario 1: Mixed lost vs understand</option>
+          <option value="scenario-2">Scenario 2: Mostly understand, few lost</option>
+          <option value="scenario-3">Scenario 3: Scale ~5</option>
+          <option value="scenario-4">Scenario 4: Scale ~2.5</option>
         </select>
         <button
           onClick={runScenario}
           disabled={!selectedScenario}
-          className="h-8 px-2 text-[12px] font-medium bg-[#F5F5F5] text-[#0D0D0D] hover:bg-[#E5E5E5] rounded-md transition-all disabled:bg-[#F5F5F5] disabled:text-[#D4D4D4] disabled:cursor-not-allowed"
+          className="h-8 px-3 text-[12px] font-medium bg-[#F5F5F5] text-[#0D0D0D] hover:bg-[#E5E5E5] rounded-md transition-all disabled:bg-[#F5F5F5] disabled:text-[#D4D4D4] disabled:cursor-not-allowed"
           title="Run selected scenario"
         >
           Run
@@ -241,7 +246,7 @@ export default function ControlPanel() {
         <button
           onClick={createTestTranscript}
           disabled={isGeneratingTranscript}
-          className="h-8 px-2 text-[12px] font-medium bg-[#FAFAFA] text-[#6B6F76] hover:bg-[#F0F0F0] border border-[#E5E5E5] rounded-md transition-all disabled:bg-[#F5F5F5] disabled:text-[#D4D4D4] disabled:cursor-not-allowed"
+          className="h-8 px-3 text-[12px] font-medium bg-[#FAFAFA] text-[#6B6F76] hover:bg-[#F0F0F0] border border-[#E5E5E5] rounded-md transition-all disabled:bg-[#F5F5F5] disabled:text-[#D4D4D4] disabled:cursor-not-allowed"
           title="Create a test transcript"
         >
           {isGeneratingTranscript ? 'Creating…' : 'Test Transcript'}
