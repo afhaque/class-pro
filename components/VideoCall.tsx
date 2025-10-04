@@ -1,7 +1,7 @@
 'use client';
 
 import { useDaily, useLocalSessionId, useParticipantIds, useVideoTrack, useAudioTrack } from '@daily-co/daily-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 function Participant({ sessionId, isLocal }: { sessionId: string; isLocal?: boolean }) {
   const videoState = useVideoTrack(sessionId);
@@ -55,11 +55,70 @@ export default function VideoCall() {
   const callObject = useDaily();
   const localSessionId = useLocalSessionId();
   const remoteParticipantIds = useParticipantIds({ filter: 'remote' });
+  const [connectionState, setConnectionState] = useState<string>('connecting');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!callObject) return;
+
+    const handleConnectionStateChange = (event: any) => {
+      console.log('Daily connection state changed:', event);
+      setConnectionState(event?.connectionState || 'unknown');
+      
+      if (event?.connectionState === 'failed') {
+        setError('Failed to connect to video call. Please check your internet connection and try again.');
+      } else if (event?.connectionState === 'connected') {
+        setError(null);
+      }
+    };
+
+    const handleError = (event: any) => {
+      console.error('Daily error:', event);
+      setError(`Video error: ${event?.error?.message || 'Unknown error'}`);
+    };
+
+    const handleCameraError = (event: any) => {
+      console.error('Camera error:', event);
+      setError('Camera access denied. Please allow camera permissions and refresh the page.');
+    };
+
+    callObject.on('connection-state-change', handleConnectionStateChange);
+    callObject.on('error', handleError);
+    callObject.on('camera-error', handleCameraError);
+
+    return () => {
+      callObject.off('connection-state-change', handleConnectionStateChange);
+      callObject.off('error', handleError);
+      callObject.off('camera-error', handleCameraError);
+    };
+  }, [callObject]);
 
   if (!callObject || !localSessionId) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-800 text-white text-xl">
-        Connecting to video call...
+        <div className="text-center">
+          <div className="text-2xl mb-2">📹</div>
+          <div>Connecting to video call...</div>
+          <div className="text-sm text-gray-400 mt-2">State: {connectionState}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-red-900 text-white text-center p-4">
+        <div>
+          <div className="text-2xl mb-2">⚠️</div>
+          <div className="text-lg mb-2">Video Connection Error</div>
+          <div className="text-sm text-red-200 mb-4">{error}</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }

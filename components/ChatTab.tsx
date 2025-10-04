@@ -259,6 +259,12 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
     const channel = subscribeToMessages(channelName, (ablyMessage: AblyMessage) => {
       console.log('🔥 NEW CODE ACTIVE: Received Ably message:', ablyMessage);
       
+      // Skip messages from the current user to prevent double posting
+      if (ablyMessage.sender === currentSenderRef.current) {
+        console.log(`🔥 NEW CODE: Skipping message from current user (${ablyMessage.sender}) to prevent double posting`);
+        return;
+      }
+      
       // Convert AblyMessage to ChatMessage format
       const chatMessage: ChatMessage = {
         id: ablyMessage.id,
@@ -270,7 +276,7 @@ export default function ChatTab({ userLanguage, userType }: ChatTabProps) {
         translation: ablyMessage.translation,
       };
       
-      // FORCE REFRESH: Add all messages - no duplicate prevention
+      // Add message from other users
       console.log(`🔥 NEW CODE: Adding message from ${ablyMessage.sender} (current sender: ${currentSenderRef.current})`);
       setMessages(prev => {
         console.log(`🔥 NEW CODE: Current messages count: ${prev.length}, adding new message`);
