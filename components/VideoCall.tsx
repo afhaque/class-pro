@@ -46,7 +46,7 @@ function Participant({ sessionId, isLocal }: { sessionId: string; isLocal?: bool
           className="w-full h-full object-cover"
         />
       )}
-      <audio ref={audioRef} autoPlay playsInline />
+      <audio ref={audioRef} autoPlay playsInline muted={isLocal} />
     </div>
   );
 }
