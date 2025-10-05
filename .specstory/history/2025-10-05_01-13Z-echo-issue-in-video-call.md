@@ -12,7 +12,155 @@ _**User (2025-10-05 01:10Z)**_
 
 _**Assistant (claude-4.5-sonnet-thinking)**_
 
+<think><details><summary>Thought Process</summary>The user is asking about an echo issue in their video calls. This is a common audio problem. Let me search through the codebase to see how they're implementing video calls and look for potential issues.
 
+Based on the documentation provided:
+1. They're using Daily.co for video calls
+2. The project uses Next.js with React components
+3. They have a VideoCall.tsx component and VideoSection.tsx component
+
+Common reasons for echo in video calls:
+1. Multiple audio tracks being played simultaneously
+2. Not muting local audio output (hearing your own audio)
+3. Multiple Daily call instances
+4. Microphone picking up speaker output (acoustic echo)
+5. Multiple browser tabs/windows with the same call
+
+Let me search the codebase to understand their implementation.</details></think>
+
+---
+
+I'll help you investigate the echo issue in your video calls. Let me examine your video call implementation to identify potential causes.
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/ahmedhaque/CodeWork/class-pro/components/VideoCall.tsx
+
+---
+
+Tool use: **read_file**
+
+Read file: /Users/ahmedhaque/CodeWork/class-pro/components/VideoSection.tsx
+
+---
+
+Tool use: **codebase_search**
+
+<details>
+                <summary>Searched codebase "How are Daily video call instances created and managed?" • **15** results</summary>
+            
+| File | Lines |
+|------|-------|
+| `app/page.tsx` | L81 |
+| `app/page.tsx` | L9-168 |
+| `components/VideoCall.tsx` | L5-152 |
+| `components/ControlPanel.tsx` | L258 |
+| `TRANSCRIPTION_PERMISSIONS_FIX.md` | L70 |
+| `app/api/get-token/route.ts` | L65 |
+| `DEPLOYMENT_CHECKLIST.md` | L71 |
+| `app/page.tsx` | L81-168 |
+| `components/VideoCall.tsx` | L152 |
+| `scripts/generate-token.js` | L105 |
+| `ENV_SETUP.md` | L63 |
+| `ENV_SETUP.md` | L56-126 |
+| `README.md` | L34-129 |
+| `app/page.tsx` | L7-81 |
+| `TRANSCRIPTION_FIXES.md` | L57 |
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Found it! I can see the issue clearly. Looking at line 49 in VideoCall.tsx:
+
+```tsx
+<audio ref={audioRef} autoPlay playsInline />
+```
+
+This audio element is NOT muted for the local participant. So when the local participant's audio plays back, it creates an echo because:
+
+1. Line 45 shows the video element is muted for local participants: `muted={isLocal}`
+2. But line 49 shows the audio element has no such conditional muting
+3. This means the local participant hears their own audio being played back through the speakers, which gets picked up by the microphone again, creating a feedback loop (echo)
+
+The fix is to mute the audio element for local participants, just like the video element is muted.</details></think>
+
+---
+
+## Found the Issue!
+
+**The echo is caused by your local audio being played back through the speakers.** 
+
+In `VideoCall.tsx`, line 49, the `<audio>` element plays back **all participants' audio** including your own, which creates a feedback loop:
+
+```tsx:49:49:components/VideoCall.tsx
+<audio ref={audioRef} autoPlay playsInline />
+```
+
+Meanwhile, the video element correctly mutes local video (line 45), but audio doesn't have the same protection.
+
+## The Fix
+
+The `<audio>` element should also be muted for local participants:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: /Users/ahmedhaque/CodeWork/class-pro/components/VideoCall.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: 1
+
+```diff
+@@ -47,5 +47,5 @@
+          />
+        )}
+-       <audio ref={audioRef} autoPlay playsInline />
++       <audio ref={audioRef} autoPlay playsInline muted={isLocal} />
+      </div>
+    );
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good, that should fix the echo issue. Now let me check for any linting errors.</details></think>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 1 file</summary>
+      
+Lint paths:
+
+- `/Users/ahmedhaque/CodeWork/class-pro/components/VideoCall.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect, no linting errors. Let me provide a clear summary of the solution.</details></think>
+
+---
+
+## Summary
+
+**Root Cause**: The local participant's audio was being played back through their own speakers, creating a feedback loop that you heard as an echo.
+
+**Solution**: Added `muted={isLocal}` to the audio element so local participants don't hear their own audio playback (matching the behavior already implemented for the video element).
+
+The echo should now be resolved. You'll still hear other participants clearly, but won't hear your own audio looping back.
 
 ---
 
